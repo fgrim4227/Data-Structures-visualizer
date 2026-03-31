@@ -1,0 +1,17 @@
+# Compilación
+build/
+bin/
+obj/
+
+# Archivos de configuración de editores
+.vscode/
+.idea/
+*.user
+
+# Archivos temporales del sistema
+.DS_Store
+Thumbs.db
+
+# Si decidieras dejar carpetas de librerías locales
+SFML/
+extern/
