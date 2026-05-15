@@ -20,10 +20,11 @@ FetchContent_Declare(
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
     GIT_TAG v1.91.5 
 )
-FetchContent_GetProperties(imgui)
-if(NOT imgui_POPULATED)
-    FetchContent_Populate(imgui)
-endif()
+FetchContent_MakeAvailable(imgui) 
+#FetchContent_GetProperties(imgui)
+#if(NOT imgui_POPULATED)
+#    FetchContent_Populate(imgui)
+#endif()
 
 # 3. Configuración de rutas para los "puentes"
 set(IMGUI_DIR ${imgui_SOURCE_DIR} CACHE PATH "Path to ImGui")

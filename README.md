@@ -13,7 +13,11 @@ Este proyecto es una herramienta educativa e interactiva escrita en **C++20** qu
 - **Compilador**: Compatible con C++20 (GCC 11+, Clang 13+, MSVC 19.30+).
 - **Sistema de Construcción**: CMake 3.20 o superior.
 - **Librerías**: SFML 3.0.0 (descargada automáticamente por el script de CMake).
-
+- **Dependencias del Sistema (Linux)**:
+    Para compilar SFML 3 en distribuciones basadas en Ubuntu/Debian, es necesario instalar las librerías de desarrollo de gráficos y ventanas:
+    ```bash
+    sudo apt update && sudo apt install -y libx11-dev libxrandr-dev libxcursor-dev libxi-dev libudev-dev libgl1-mesa-dev libfreetype6-dev    
+    ```
 ## Instalación y Uso
 
 1. **Clonar el repositorio**:
@@ -33,9 +37,3 @@ Este proyecto es una herramienta educativa e interactiva escrita en **C++20** qu
     Bash
     ./VisualizadorEstructuras
 ```
- **Controles e Interacción**
--Tecla A (Add): Activa la entrada por consola para insertar un nuevo valor numérico.
-
--Tecla D (Delete): Activa la entrada por consola para eliminar un valor específico.
-
--Terminal: El programa pausará momentáneamente el renderizado mientras esperas tu entrada en la terminal (debido al uso de std::cin).
