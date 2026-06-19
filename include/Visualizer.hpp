@@ -1,9 +1,12 @@
 #include<SFML/Graphics.hpp>
 #include<VisualNode.hpp>
 #include<BST.hpp>
+#include<Double_linked_list.hpp>
 #include<imgui.h>
 #include<imgui-SFML.h>
 #include<functional>
+#include<memory>
+#include<cmath>
 enum class State
 {
     Main_menu,
@@ -39,10 +42,13 @@ class Visualizer
         int valueInput;
         State current_state;
         std::shared_ptr<BST<T>> tree;
+        std::shared_ptr<D_Linked_list<T>> double_linked_list;
         std::function<bool(T,T)> cmp;
         void render_menu(sf::RenderWindow& window, sf::Clock delta_clock, sf::Font font);
         void draw_tree(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
         void render_BST_visualizer(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Font& font);
+        void draw_double_linked_list(sf::RenderWindow& window, sf::Font& font);
+        void render_double_linked_list_visualizer(sf::RenderWindow& window, sf::Font& font);
 };
 template<typename T>
 void Visualizer<T>::handle_events(sf::RenderWindow& window, const sf::Event& event)
@@ -91,7 +97,7 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
         {
             if(ImGui::MenuItem("Binary Search Tree")) current_state = State::BST_visualizer;
 
-            if(ImGui::MenuItem("Double Linked List (Coming Soon)")) current_state = State::Double_linked_list_visualizer;
+            if(ImGui::MenuItem("Double Linked List (Working on it)")) current_state = State::Double_linked_list_visualizer;
 
             ImGui::Separator();
 
@@ -113,6 +119,9 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
             break;
         case State::BST_visualizer:
             render_BST_visualizer(window, tree, font);
+            break;
+        case State::Double_linked_list_visualizer:
+            render_double_linked_list_visualizer(window, font);
             break;
         default:
             current_state = State::Main_menu;
@@ -229,4 +238,128 @@ void Visualizer<T>::render_menu(sf::RenderWindow& window, sf::Clock delta_clock,
     ImGui::EndMainMenuBar();
 }
 
+}
+template<typename T>
+void Visualizer<T>::draw_double_linked_list(sf::RenderWindow& window, sf::Font& font)
+{
+    if (!double_linked_list) return;
+
+    auto centinel = double_linked_list->get_centinel();
+    auto current = centinel->getNext();
+
+    // 1. Contar cuántos nodos reales hay (sin contar el centinela)
+    int node_count = 0;
+    while (current != centinel && current != nullptr) {
+        node_count++;
+        current = current->getNext();
+    }
+
+    // Si solo está el centinela o está vacía, podemos dibujar solo el centinela en el centro
+    if (node_count == 0) {
+        VisualNode visual_centinel("C", font);
+        visual_centinel.setPosition({ 400.f, 300.f });
+        window.draw(visual_centinel);
+        return;
+    }
+
+    // 2. Parámetros del círculo de la interfaz
+    sf::Vector2f center = { 400.f, 300.f };
+    float circle_radius = 180.f; // Radio del anillo general donde orbitan los nodos
+    const float PI = 3.14159265f;
+
+    // Guardaremos las posiciones para poder dibujar los enlaces (flechas/líneas) después
+    std::vector<sf::Vector2f> positions;
+    positions.reserve(node_count);
+
+    // Recorremos de nuevo para calcular posiciones y dibujar nodos
+    current = centinel->getNext();
+    int i = 0;
+    while (current != centinel && current != nullptr) {
+        // Calcular ángulo en radianes
+        float angle = i * (2.0f * PI / node_count);
+
+        // Coordenadas cartesianas a partir de polares
+        float x = center.x + circle_radius * std::cos(angle);
+        float y = center.y + circle_radius * std::sin(angle);
+        sf::Vector2f node_pos = { x, y };
+        positions.push_back(node_pos);
+
+        // Dibujar el nodo físico
+        VisualNode node_visual(std::to_string(current->getData()), font);
+        node_visual.setPosition(node_pos);
+        window.draw(node_visual);
+
+        current = current->getNext();
+        i++;
+    }
+
+    // 3. Dibujar los enlaces dobles circulares
+    // Para que se vea doble enlace, podemos hacer líneas sutilmente separadas o usar colores
+    for (size_t idx = 0; idx < positions.size(); idx++) {
+        sf::Vector2f from = positions[idx];
+        sf::Vector2f to = positions[(idx + 1) % positions.size()]; // El siguiente (circular)
+
+        // Enlace Next (Línea blanca o verde)
+        sf::Vertex next_line[] = {
+            sf::Vertex(from, sf::Color::Green),
+            sf::Vertex(to, sf::Color::Green)
+        };
+        window.draw(next_line, 2, sf::PrimitiveType::Lines);
+
+        // Enlace Prev (Sutilmente desplazado hacia el centro para que no se superpongan)
+        sf::Vector2f offset_from = from + (center - from) * 0.1f;
+        sf::Vector2f offset_to = to + (center - to) * 0.1f;
+
+        sf::Vertex prev_line[] = {
+            sf::Vertex(offset_from, sf::Color::Red),
+            sf::Vertex(offset_to, sf::Color::Red)
+        };
+        window.draw(prev_line, 2, sf::PrimitiveType::Lines);
+    }
+}
+template<typename T>
+void Visualizer<T>::render_double_linked_list_visualizer(sf::RenderWindow& window, sf::Font& font)
+{
+ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({220.f, static_cast<float>(window.getSize().y)}, ImGuiCond_Always);
+    
+    ImGui::Begin("Controles Lista Doble", nullptr, 
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+
+    if (ImGui::Button("<- Volver al Menú", {-1, 0})) {
+        current_state = State::Main_menu;
+    }
+    
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    static int list_value = 0;
+    ImGui::InputInt("Valor", &list_value);
+
+    if (ImGui::Button("Push Back", {-1, 0})) {
+        if (!double_linked_list) {
+            double_linked_list = std::make_shared<D_Linked_list<T>>();
+        }
+        double_linked_list->push_back(static_cast<T>(list_value));
+    }
+
+    if (ImGui::Button("Push Front", {-1, 0})) {
+        if (!double_linked_list) double_linked_list = std::make_shared<D_Linked_list<T>>();
+        double_linked_list->push_front(static_cast<T>(list_value));
+    }
+
+    if (ImGui::Button("Eliminar Nodo", {-1, 0})) {
+        if (double_linked_list) double_linked_list->delete_node(static_cast<T>(list_value));
+    }
+
+    ImGui::End();
+
+    // Renderizar la lista circular desplazando el mundo un poco a la derecha 
+    // para que el menú de la izquierda no tape el círculo
+    view.setCenter({ 350.f, 300.f }); 
+    window.setView(view);
+
+    draw_double_linked_list(window, font);
+
+    window.setView(window.getDefaultView());
 }
