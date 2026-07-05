@@ -12,7 +12,7 @@ int main()
     sf::RenderWindow main_window(sf::VideoMode({800, 600}), "Data Structures Visualizer", sf::Style::Default);
     main_window.setFramerateLimit(60);
     main_window.setPosition({0, 0});
-
+ 
     if(!ImGui::SFML::Init(main_window)) return -1;
 
     sf::Font font("assets/arial.ttf");

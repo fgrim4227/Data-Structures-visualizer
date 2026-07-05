@@ -1,6 +1,8 @@
 #include<SFML/Graphics.hpp>
 #include<VisualNode.hpp>
 #include<BST.hpp>
+#include<AVL.hpp>
+#include<Treap.hpp>
 #include<Double_linked_list.hpp>
 #include<imgui.h>
 #include<imgui-SFML.h>
@@ -42,13 +44,18 @@ class Visualizer
         int valueInput;
         State current_state;
         std::shared_ptr<BST<T>> tree;
+        AVLTree<T> avl_tree;        Treap<T> treap_tree;
         std::shared_ptr<D_Linked_list<T>> double_linked_list;
         std::function<bool(T,T)> cmp;
         void render_menu(sf::RenderWindow& window, sf::Clock delta_clock, sf::Font font);
         void draw_tree(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
-        void render_BST_visualizer(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Font& font);
+        void render_BST_visualizer(sf::RenderWindow& window, sf::Font& font);
         void draw_double_linked_list(sf::RenderWindow& window, sf::Font& font);
         void render_double_linked_list_visualizer(sf::RenderWindow& window, sf::Font& font);
+        void draw_avl(sf::RenderWindow& window, AVLNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
+        void render_AVL_visualizer(sf::RenderWindow& window, sf::Font& font);
+        void draw_treap(sf::RenderWindow& window, TreapNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
+        void render_Treap_visualizer(sf::RenderWindow& window, sf::Font& font);
 };
 template<typename T>
 void Visualizer<T>::handle_events(sf::RenderWindow& window, const sf::Event& event)
@@ -97,7 +104,11 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
         {
             if(ImGui::MenuItem("Binary Search Tree")) current_state = State::BST_visualizer;
 
-            if(ImGui::MenuItem("Double Linked List (Working on it)")) current_state = State::Double_linked_list_visualizer;
+            if(ImGui::MenuItem("Double Linked List")) current_state = State::Double_linked_list_visualizer;
+
+            if(ImGui::MenuItem("AVL Visualizer")) current_state = State::AVL_visualizer;
+
+            if(ImGui::MenuItem("Treap Visualizer")) current_state = State::Treap_visualizer;
 
             ImGui::Separator();
 
@@ -118,10 +129,16 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
             render_menu(window, delta_clock, font);
             break;
         case State::BST_visualizer:
-            render_BST_visualizer(window, tree, font);
+            render_BST_visualizer(window, font);
             break;
         case State::Double_linked_list_visualizer:
             render_double_linked_list_visualizer(window, font);
+            break;
+        case State::AVL_visualizer:
+            render_AVL_visualizer(window, font);
+            break;
+        case State::Treap_visualizer:
+            render_Treap_visualizer(window, font);
             break;
         default:
             current_state = State::Main_menu;
@@ -159,6 +176,7 @@ void Visualizer<T>::draw_tree(sf::RenderWindow& window,std::shared_ptr<BST<T>> r
     nodeVisual.setPosition(pos);
     window.draw(nodeVisual);
 }
+/*
 template <typename T>
 void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Font& font)
 {
@@ -201,6 +219,160 @@ void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,std::shared_p
 
     ImGui::End();
 }
+*/
+template <typename T>
+void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,sf::Font& font)
+{
+    // --- 1. PANEL LATERAL FIJO ---
+    ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({220.f, static_cast<float>(window.getSize().y)}, ImGuiCond_Always);
+    
+    ImGui::Begin("Controles BST", nullptr, 
+                 ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+
+    if (ImGui::Button("<- Volver al Menú", {-1, 0})) {
+        current_state = State::Main_menu;
+    }
+    
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    ImGui::Text("Árbol Binario");
+    ImGui::InputInt("Valor", &valueInput);        
+    
+    if (ImGui::Button("Insertar", {-1, 0})) {
+        if (tree) {
+            tree->insert(static_cast<T>(valueInput));
+        } else {
+            tree = std::make_shared<BST<T>>(static_cast<T>(valueInput), cmp);
+        }
+    }
+    
+    if (ImGui::Button("Eliminar", {-1, 0})) {
+        if (tree) tree = tree->delete_node(static_cast<T>(valueInput));
+    }
+
+    ImGui::End();
+
+    // --- 2. RENDERIZADO DEL ÁRBOL ---
+    window.setView(view);
+    
+    if (tree) {
+        // Le sumamos 100.f a X para que la raíz nazca más a la derecha y no quede detrás del menú
+        sf::Vector2f start_pos = { (window.getSize().x / 2.f) + 100.f, 60.f };
+        draw_tree(window, tree, start_pos, 150.f, 80.f, font);
+    }
+    
+    window.setView(window.getDefaultView());
+}
+template <typename T>
+void Visualizer<T>::draw_avl(sf::RenderWindow& window, AVLNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font) {
+    if (!node) return;
+
+    if (node->left) {
+        sf::Vertex line[] = { sf::Vertex(pos, sf::Color::Black), sf::Vertex(pos + sf::Vector2f(-hOffset, vOffset), sf::Color::White) };
+        window.draw(line, 2, sf::PrimitiveType::Lines);
+        draw_avl(window, node->left, pos + sf::Vector2f(-hOffset, vOffset), hOffset / 2.2f, vOffset, font);
+    }
+    if (node->right) {
+        sf::Vertex line[] = { sf::Vertex(pos, sf::Color::Black), sf::Vertex(pos + sf::Vector2f(hOffset, vOffset), sf::Color::White) };
+        window.draw(line, 2, sf::PrimitiveType::Lines);
+        draw_avl(window, node->right, pos + sf::Vector2f(hOffset, vOffset), hOffset / 2.2f, vOffset, font);
+    }
+
+    VisualNode nodeVisual(std::to_string(node->key), font, 35.f, sf::Color(120, 40, 200));
+    nodeVisual.setPosition(pos);
+    window.draw(nodeVisual);
+}
+
+template <typename T>
+void Visualizer<T>::draw_treap(sf::RenderWindow& window, TreapNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font) {
+    if (!node) return;
+
+    if (node->left) {
+        sf::Vertex line[] = { sf::Vertex(pos, sf::Color::Black), sf::Vertex(pos + sf::Vector2f(-hOffset, vOffset), sf::Color::White) };
+        window.draw(line, 2, sf::PrimitiveType::Lines);
+        draw_treap(window, node->left, pos + sf::Vector2f(-hOffset, vOffset), hOffset / 2.2f, vOffset, font);
+    }
+    if (node->right) {
+        sf::Vertex line[] = { sf::Vertex(pos, sf::Color::Black), sf::Vertex(pos + sf::Vector2f(hOffset, vOffset), sf::Color::White) };
+        window.draw(line, 2, sf::PrimitiveType::Lines);
+        draw_treap(window, node->right, pos + sf::Vector2f(hOffset, vOffset), hOffset / 2.2f, vOffset, font);
+    }
+
+    // Treap: Mostramos el Key y un fragmento corto de la prioridad para que quepa visualmente
+    std::string label = std::to_string(node->key) + "| P: " + std::to_string(node->priority % 1000);
+    VisualNode nodeVisual(label, font, 45.f, sf::Color(200, 80, 20));
+    nodeVisual.setPosition(pos);
+    window.draw(nodeVisual);
+}
+template <typename T>
+void Visualizer<T>::render_AVL_visualizer(sf::RenderWindow& window, sf::Font& font) {
+    ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({220.f, static_cast<float>(window.getSize().y)}, ImGuiCond_Always);
+    ImGui::Begin("Controles AVL", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+
+    if (ImGui::Button("<- Volver al Menú", {-1, 0})) current_state = State::Main_menu;
+    
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Árbol AVL (Auto-balanceado)");
+    ImGui::InputInt("Valor", &valueInput);        
+    
+    if (ImGui::Button("Insertar", {-1, 0})) {
+        //if (!avl_tree.get_root()) avl_tree = AVLTree<T>();
+        avl_tree.insert(static_cast<T>(valueInput));
+    }
+    if (ImGui::Button("Eliminar", {-1, 0})) {
+        if (avl_tree.get_root()) avl_tree.erase(static_cast<T>(valueInput));
+    }
+    if (ImGui::Button("Limpiar AVL", {-1, 0})) {
+        avl_tree.clean_tree();
+    }
+    ImGui::End();
+
+    window.setView(view);
+    if (avl_tree.get_root()) draw_avl(window, avl_tree.get_root(), { (window.getSize().x / 2.f) + 100.f, 60.f }, 150.f, 80.f, font);
+    window.setView(window.getDefaultView());
+}
+
+template <typename T>
+void Visualizer<T>::render_Treap_visualizer(sf::RenderWindow& window, sf::Font& font) {
+    ImGui::SetNextWindowPos({0, 0}, ImGuiCond_Always);
+    ImGui::SetNextWindowSize({220.f, static_cast<float>(window.getSize().y)}, ImGuiCond_Always);
+    ImGui::Begin("Controles Treap", nullptr, ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoCollapse);
+
+    if (ImGui::Button("<- Volver al Menú", {-1, 0})) current_state = State::Main_menu;
+    
+    ImGui::Separator();
+    ImGui::Spacing();
+    ImGui::Text("Treap (Key + Priority)");
+    ImGui::InputInt("Valor", &valueInput);        
+    
+    if (ImGui::Button("Insertar", {-1, 0})) {
+        //if (!treap_tree.get_root()) treap_tree = Treap<T>();
+        treap_tree.insert(static_cast<T>(valueInput));
+    }
+    
+    ImGui::Separator();
+    ImGui::Text("Opciones de Borrado:");
+    if (ImGui::Button("Eliminar (Tradicional)", {-1, 0})) {
+        if (treap_tree.get_root()) treap_tree.delete_node(static_cast<T>(valueInput));
+    }
+    if (ImGui::Button("Eliminar (Merge/Split)", {-1, 0})) {
+        if (treap_tree.get_root()) treap_tree.delete_with_merge(static_cast<T>(valueInput));
+    }
+    
+    if (ImGui::Button("Limpiar Treap", {-1, 0})) {
+        treap_tree.clean_tree();
+    }
+    ImGui::End();
+
+    window.setView(view);
+    if (treap_tree.get_root()) draw_treap(window, treap_tree.get_root(), { (window.getSize().x / 2.f) + 100.f, 60.f }, 350.f, 200.f, font);
+    window.setView(window.getDefaultView());
+}
+
 template<typename T>
 void Visualizer<T>::render_menu(sf::RenderWindow& window, sf::Clock delta_clock, sf::Font font) {
     // Centrar la ventana de ImGui

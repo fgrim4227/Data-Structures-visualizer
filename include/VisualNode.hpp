@@ -7,7 +7,7 @@
 class VisualNode : public sf::Drawable, public sf::Transformable 
 {
     public:
-        VisualNode(const std::string& value, const sf::Font& font);
+        VisualNode(const std::string& value, const sf::Font& font, float radius = 35.f, sf::Color color = sf::Color::Blue);
         void draw(sf::RenderTarget& target, sf::RenderStates states) const override;
     
     private:
