@@ -390,9 +390,15 @@ void Visualizer<T>::render_menu(sf::RenderWindow& window, sf::Clock delta_clock,
     }
     ImGui::End();
     */
-   ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Always);
+   ImGui::SetNextWindowSize(ImVec2(window.getSize().x, window.getSize().y), ImGuiCond_Always);
    ImGui::SetNextWindowPos({window.getSize().x / 2.0f, window.getSize().y / 2.0f}, ImGuiCond_Always, {0.5f, 0.5f});
    if (ImGui::BeginMainMenuBar()) {
+    if (ImGui::BeginMenu("Double Linked List Visualizer")) {
+        if (ImGui::MenuItem("New", "Ctrl+N")) {
+            current_state = State::Double_linked_list_visualizer;
+        }
+        ImGui::EndMenu();
+    }
     if (ImGui::BeginMenu("BST Visualizer")) {
         if (ImGui::MenuItem("New", "Ctrl+N")) 
         { 
@@ -403,10 +409,24 @@ void Visualizer<T>::render_menu(sf::RenderWindow& window, sf::Clock delta_clock,
         if (ImGui::MenuItem("Exit")) { /* Handle Exit */ }
         ImGui::EndMenu();
     }
+    if (ImGui::BeginMenu("Treap Visualizer")) {
+        if (ImGui::MenuItem("New", "Ctrl+N")) {
+            current_state = State::Treap_visualizer;
+        }
+        ImGui::EndMenu();
+    }
+    if (ImGui::BeginMenu("AVL Visualizer")) {
+        if (ImGui::MenuItem("New", "Ctrl+N")) {
+            current_state = State::AVL_visualizer;
+        }
+        ImGui::EndMenu();
+    }
     if (ImGui::BeginMenu("Edit")) {
         if (ImGui::MenuItem("Undo", "Ctrl+Z")) {}
         ImGui::EndMenu();
     }
+    
+    
     ImGui::EndMainMenuBar();
 }
 
