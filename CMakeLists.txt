@@ -4,7 +4,26 @@ project(VisualizadorEstructuras VERSION 1.0)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# --- OPTIMIZACIÓN 1: Caché de compilación ---
+# Si el usuario tiene ccache instalado, las compilaciones subsecuentes serán casi instantáneas
+find_program(CCACHE_PROGRAM ccache)
+if(CCACHE_PROGRAM)
+    set(CMAKE_CXX_COMPILER_LAUNCHER "${CCACHE_PROGRAM}")
+endif()
+
+# --- OPTIMIZACIÓN 2: Configuración de Release por defecto ---
+# Si no se especifica el tipo de build, usa Release (más rápido al ejecutar, optimizado)
+if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    set(CMAKE_BUILD_TYPE "Release" CACHE STRING "Choose the type of build." FORCE)
+    set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "MinSizeRel" "RelWithDebInfo")
+endif()
+
 include(FetchContent)
+
+# --- OPTIMIZACIÓN 3: Apagar extras de SFML para compilar más rápido ---
+set(SFML_BUILD_DOC_API OFF CACHE BOOL "Disable SFML docs" FORCE)
+set(SFML_BUILD_EXAMPLES OFF CACHE BOOL "Disable SFML examples" FORCE)
+set(SFML_BUILD_TEST_SUITE OFF CACHE BOOL "Disable SFML tests" FORCE)
 
 # 1. Descargar SFML 3
 FetchContent_Declare(
@@ -21,10 +40,6 @@ FetchContent_Declare(
     GIT_TAG v1.91.5 
 )
 FetchContent_MakeAvailable(imgui) 
-#FetchContent_GetProperties(imgui)
-#if(NOT imgui_POPULATED)
-#    FetchContent_Populate(imgui)
-#endif()
 
 # 3. Configuración de rutas para los "puentes"
 set(IMGUI_DIR ${imgui_SOURCE_DIR} CACHE PATH "Path to ImGui")

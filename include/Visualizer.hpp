@@ -28,7 +28,7 @@ class Visualizer
 {
     //
     public:
-        Visualizer(std::function<bool(T,T)> CMP) : current_state(State::Main_menu), tree(nullptr), cmp(CMP), valueInput(0), zoom_level(1.0f)
+        Visualizer(std::function<bool(T,T)> CMP) : current_state(State::Main_menu), cmp(CMP), valueInput(0), zoom_level(1.0f)
         {
             view.setSize({800.f, 600.f});
             view.setCenter({400.f, 300.f});
@@ -43,12 +43,12 @@ class Visualizer
         sf::Vector2f last_mouse_pos;
         int valueInput;
         State current_state;
-        std::shared_ptr<BST<T>> tree;
+        BST<T> bst_tree;
         AVLTree<T> avl_tree;        Treap<T> treap_tree;
         std::shared_ptr<D_Linked_list<T>> double_linked_list;
         std::function<bool(T,T)> cmp;
         void render_menu(sf::RenderWindow& window, sf::Clock delta_clock, sf::Font font);
-        void draw_tree(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
+        void draw_tree(sf::RenderWindow& window, BSTNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font);
         void render_BST_visualizer(sf::RenderWindow& window, sf::Font& font);
         void draw_double_linked_list(sf::RenderWindow& window, sf::Font& font);
         void render_double_linked_list_visualizer(sf::RenderWindow& window, sf::Font& font);
@@ -117,7 +117,7 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
             ImGui::EndMenu();
         }
         if (ImGui::BeginMenu("Opciones")) {
-            if (ImGui::MenuItem("Limpiar Pantalla")) tree = nullptr;
+            if (ImGui::MenuItem("Limpiar Pantalla")) bst_tree.clean_tree();
             ImGui::EndMenu();
         }
         ImGui::EndMainMenuBar();
@@ -148,78 +148,32 @@ void Visualizer<T>::update_and_run(sf::RenderWindow& window, sf::Clock delta_clo
 
 }
 template <typename T>
-void Visualizer<T>::draw_tree(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font)
+void Visualizer<T>::draw_tree(sf::RenderWindow& window, BSTNode<T, std::less<T>>* node, sf::Vector2f pos, float hOffset, float vOffset, sf::Font& font)
 {    
-    if (!root) return;
-    // Distancia vertical entre niveles
-    // 1. Dibujar líneas hacia los hijos primero
-    if (root->getLeft()) {
+    if (!node) return;
+    
+    if (node->left) {
         sf::Vertex line[] = {
             sf::Vertex(pos, sf::Color::Black),
             sf::Vertex(pos + sf::Vector2f(-hOffset, 80.f), sf::Color::White)
         };
         window.draw(line, 2, sf::PrimitiveType::Lines);
-        draw_tree(window, root->getLeft(), pos + sf::Vector2f(-hOffset, 80.f), hOffset / 2.2f, 80.f, font);
+        draw_tree(window, node->left, pos + sf::Vector2f(-hOffset, 80.f), hOffset / 2.2f, 80.f, font);
     }
 
-    if (root->getRight()) {
+    if (node->right) {
         sf::Vertex line[] = {
             sf::Vertex(pos, sf::Color::Black),
             sf::Vertex(pos + sf::Vector2f(hOffset, 80.f), sf::Color::White)
         };
         window.draw(line, 2, sf::PrimitiveType::Lines);
-        draw_tree(window, root->getRight(), pos + sf::Vector2f(hOffset, 80.f), hOffset / 2.2f, 80.f, font);
+        draw_tree(window, node->right, pos + sf::Vector2f(hOffset, 80.f), hOffset / 2.2f, 80.f, font);
     }
 
-    // 2. Dibujar el nodo (encima de las líneas)
-    VisualNode nodeVisual(std::to_string(root->getData()), font);
+    VisualNode nodeVisual(std::to_string(node->key), font);
     nodeVisual.setPosition(pos);
     window.draw(nodeVisual);
 }
-/*
-template <typename T>
-void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,std::shared_ptr<BST<T>> root, sf::Font& font)
-{
-    window.setView(view);
-    if(tree)
-    {
-        draw_tree(window, root, {window.getSize().x / 2.f, 60.f}, 100, 100, font);
-    }
-    window.setView(window.getDefaultView());
-    ImGui::Begin("Controles BST", nullptr, ImGuiWindowFlags_MenuBar);
-    if(ImGui::BeginMenuBar())
-    {
-        if(ImGui::BeginMenu("Options"))
-        {
-            ImGui::Text("Arbol Binario de Busqueda");
-            ImGui::InputInt("Valor", &valueInput);        
-            if (ImGui::Button("Insertar")) 
-            {
-                if (tree) 
-                {
-                    tree->insert(static_cast<T>(valueInput));
-                    //addLog("Insertado: " + std::to_string(valueInput));
-                } else 
-                {
-                    tree = std::make_shared<BST<T>>(static_cast<T>(valueInput), cmp);
-                }
-            }
-            if(ImGui::Button("Eliminar"))
-            {
-                if(tree) tree = tree->delete_node(static_cast<T>(valueInput));
-            }
-            if (ImGui::Button("Volver al Menú")) 
-            {
-                current_state = State::Main_menu;
-            }
-            ImGui::EndMenu();
-        }
-        ImGui::EndMenuBar();
-    }
-
-    ImGui::End();
-}
-*/
 template <typename T>
 void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,sf::Font& font)
 {
@@ -241,26 +195,23 @@ void Visualizer<T>::render_BST_visualizer(sf::RenderWindow& window,sf::Font& fon
     ImGui::InputInt("Valor", &valueInput);        
     
     if (ImGui::Button("Insertar", {-1, 0})) {
-        if (tree) {
-            tree->insert(static_cast<T>(valueInput));
-        } else {
-            tree = std::make_shared<BST<T>>(static_cast<T>(valueInput), cmp);
-        }
+        bst_tree.insert(static_cast<T>(valueInput));
     }
     
     if (ImGui::Button("Eliminar", {-1, 0})) {
-        if (tree) tree = tree->delete_node(static_cast<T>(valueInput));
+        bst_tree.erase(static_cast<T>(valueInput));
     }
-
+    if (ImGui::Button("Cargar Secuencia de inserciones", {-1, 0})) {
+        //Logica carga de archivo
+    }
     ImGui::End();
 
     // --- 2. RENDERIZADO DEL ÁRBOL ---
     window.setView(view);
     
-    if (tree) {
-        // Le sumamos 100.f a X para que la raíz nazca más a la derecha y no quede detrás del menú
-        sf::Vector2f start_pos = { (window.getSize().x / 2.f) + 100.f, 60.f };
-        draw_tree(window, tree, start_pos, 150.f, 80.f, font);
+    if (bst_tree.get_root()) {
+        sf::Vector2f start_pos = { 500.f, 60.f };
+        draw_tree(window, bst_tree.get_root(), start_pos, 150.f, 80.f, font);
     }
     
     window.setView(window.getDefaultView());
@@ -301,7 +252,7 @@ void Visualizer<T>::draw_treap(sf::RenderWindow& window, TreapNode<T, std::less<
     }
 
     // Treap: Mostramos el Key y un fragmento corto de la prioridad para que quepa visualmente
-    std::string label = std::to_string(node->key) + "| P: " + std::to_string(node->priority % 1000);
+    std::string label = std::to_string(node->key) + "| P: " + std::to_string(node->priority);
     VisualNode nodeVisual(label, font, 45.f, sf::Color(200, 80, 20));
     nodeVisual.setPosition(pos);
     window.draw(nodeVisual);
@@ -326,13 +277,16 @@ void Visualizer<T>::render_AVL_visualizer(sf::RenderWindow& window, sf::Font& fo
     if (ImGui::Button("Eliminar", {-1, 0})) {
         if (avl_tree.get_root()) avl_tree.erase(static_cast<T>(valueInput));
     }
+    if (ImGui::Button("Cargar Secuencia de inserciones", {-1, 0})) {
+        //Logica carga de archivo
+    }
     if (ImGui::Button("Limpiar AVL", {-1, 0})) {
         avl_tree.clean_tree();
     }
     ImGui::End();
 
     window.setView(view);
-    if (avl_tree.get_root()) draw_avl(window, avl_tree.get_root(), { (window.getSize().x / 2.f) + 100.f, 60.f }, 150.f, 80.f, font);
+    if (avl_tree.get_root()) draw_avl(window, avl_tree.get_root(), { 500.f, 60.f }, 150.f, 80.f, font);
     window.setView(window.getDefaultView());
 }
 
@@ -362,34 +316,21 @@ void Visualizer<T>::render_Treap_visualizer(sf::RenderWindow& window, sf::Font& 
     if (ImGui::Button("Eliminar (Merge/Split)", {-1, 0})) {
         if (treap_tree.get_root()) treap_tree.delete_with_merge(static_cast<T>(valueInput));
     }
-    
+    if (ImGui::Button("Cargar Secuencia de inserciones", {-1, 0})) {
+        //Logica carga de archivo
+    }
     if (ImGui::Button("Limpiar Treap", {-1, 0})) {
         treap_tree.clean_tree();
     }
     ImGui::End();
 
     window.setView(view);
-    if (treap_tree.get_root()) draw_treap(window, treap_tree.get_root(), { (window.getSize().x / 2.f) + 100.f, 60.f }, 350.f, 200.f, font);
+    if (treap_tree.get_root()) draw_treap(window, treap_tree.get_root(), { 500.f, 60.f }, 350.f, 200.f, font);
     window.setView(window.getDefaultView());
 }
 
 template<typename T>
 void Visualizer<T>::render_menu(sf::RenderWindow& window, sf::Clock delta_clock, sf::Font font) {
-    // Centrar la ventana de ImGui
-    /*
-    ImGui::SetNextWindowSize(ImVec2(400, 400), ImGuiCond_Always);
-    ImGui::SetNextWindowPos({window.getSize().x / 2.0f, window.getSize().y / 2.0f}, ImGuiCond_Always, {0.5f, 0.5f});
-    ImGui::Begin("Seleccionar Estructura", nullptr, ImGuiWindowFlags_AlwaysAutoResize);
-    ImGui::SetWindowFontScale(1.7f);
-    if (ImGui::Button("Árbol Binario (BST)", {200, 50})) {
-        current_state = State::BST_visualizer;
-        //logs.push_back("Cambiado a modo BST."); // Mensaje para tu log
-    }
-    if (ImGui::Button("Grafos (Próximamente)", {200, 50})) {
-        // Por ahora no hace nada
-    }
-    ImGui::End();
-    */
    ImGui::SetNextWindowSize(ImVec2(window.getSize().x, window.getSize().y), ImGuiCond_Always);
    ImGui::SetNextWindowPos({window.getSize().x / 2.0f, window.getSize().y / 2.0f}, ImGuiCond_Always, {0.5f, 0.5f});
    if (ImGui::BeginMainMenuBar()) {
