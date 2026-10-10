@@ -1,259 +1,142 @@
-#include<iostream>
-#include<algorithm>
-#include<functional>
-template<typename T, typename Compare = std::less<T>>
-struct AVLNode
-{
-    T key;
-    int height;
-    AVLNode* left;
-    AVLNode* right;
-    Compare cmp;
-    AVLNode(T k, Compare c = Compare()) : key(k), height(1), left(nullptr), right(nullptr), cmp(c) {};
-};
+#pragma once
+#include "Data_Structure.hpp"
+#include "GenBinaryNode.hpp"
+#include <algorithm>
 
-template<typename T, typename Compare = std::less<T>>
-class AVLTree
-{
-    using AVLnode = AVLNode<T, Compare>;
-    private:
-        AVLnode* root;
-        int get_height(AVLnode* node)
-        {
-            return (node) ? node->height : 0;
-        }
-        int get_balance(AVLnode* node)
-        {
-            return(node) ? get_height(node->right) - get_height(node->left) : 0;
-        }
-        void update_height(AVLnode* node)
-        {
-            if(node)
-            {
-                node->height = 1 + std::max(get_height(node->left), get_height(node->right));
-            }
-        }
-        void rotate_left(AVLnode*& node)
-        {
-            AVLnode* R = node->right;
-            node->right = R->left;
-            R->left = node;
-            //Update height of node due to his new 2 sons
-            update_height(node);
-            //With the correct height of his new son, we update the height of the new father
-            update_height(R);
-            //We readjust the content of the memory of node so the grandfather points to R
-            node = R;
-        }
-        void rotate_right(AVLnode*& node)
-        {
-            AVLnode* L = node->left;
-            node->left = L->right;
-            L->right = node;
-            //Update height of node with new sons
-            update_height(node);
-            //With that correct height we now update the height of the new father
-            update_height(L);
-            //Now we change the memory of node
-            node = L;
-        }
-        void balance_sub_tree(AVLnode*& node)
-        {
-            update_height(node);
+template <typename T>
+class AVL : public DataStructure<T> {
+private:
+    BinaryNode<T>* root = nullptr;
+    const sf::Font& font;
 
-            int balance = get_balance(node);
+    int get_height(BinaryNode<T>* node) { return node ? node->height : 0; }
+    int get_balance(BinaryNode<T>* node) { return node ? get_height(node->right) - get_height(node->left) : 0; }
+    void update_height(BinaryNode<T>* node) { if (node) node->height = 1 + std::max(get_height(node->left), get_height(node->right)); }
 
-            if(balance < -1)
-            {
-                if(get_balance(node->left) > 0)
-                {
-                    rotate_left(node->left);
-                }
-                rotate_right(node);
-            }
-            else if(balance > 1)
-            {
-                if(get_balance(node->right) < 0)
-                {
-                    rotate_right(node->right);
-                }
-                rotate_left(node);
-            }
-            //Not neccesary, the rotation functions already update the height of the nodes, but it is a good practice to keep the height updated after balancing
-            //update_height(node);
+    void rotate_left(BinaryNode<T>*& node) {
+        BinaryNode<T>* R = node->right;
+        node->right = R->left;
+        R->left = node;
+        update_height(node);
+        update_height(R);
+        node = R;
+    }
+
+    void rotate_right(BinaryNode<T>*& node) {
+        BinaryNode<T>* L = node->left;
+        node->left = L->right;
+        L->right = node;
+        update_height(node);
+        update_height(L);
+        node = L;
+    }
+
+    void balance_sub_tree(BinaryNode<T>*& node) {
+        update_height(node);
+        int balance = get_balance(node);
+        if (balance < -1) {
+            if (get_balance(node->left) > 0) rotate_left(node->left);
+            rotate_right(node);
+        } else if (balance > 1) {
+            if (get_balance(node->right) < 0) rotate_right(node->right);
+            rotate_left(node);
         }
-        void insert(AVLnode*& node, T key)
-        {
-            if(!node)
-            {
-                node = new AVLnode(key);
-                return;
-            }
-            else if(node->cmp(key, node->key))
-            {
-                insert(node->left, key);
-            }
-            else if(node->cmp(node->key, key))
-            {
-                insert(node->right, key);
-            }
-            else
-            {
-                return;
-            }
-            balance_sub_tree(node);
+    }
+
+    void internal_insert(BinaryNode<T>*& node, T key) {
+        if (!node) {
+            node = new BinaryNode<T>(key, font);
+            node->visual.setOpacity(0);
+            // ¡Comando activado!
+            this->enqueueCommand(std::make_unique<FadeInCommand>(&node->visual, 0.5f));
+            return;
         }
-        /*
-        bool insert(AVLNode*& node, T key)
-        {
-            bool result = false;
-            if(!node)
-            {
-                node = new AVLNode(key);
-                return true;
-            }    
-            else if(node->cmp(key, node->key))
-            {
-                result = insert(node->left, key);
+        this->enqueueCommand(std::make_unique<HighlightNodeCommand>(&node->visual, sf::Color::Red, 0.3f));
+        if (key < node->data) internal_insert(node->left, key);
+        else if (key > node->data) internal_insert(node->right, key);
+        else return;
+
+        balance_sub_tree(node);
+    }
+
+    void internal_delete(BinaryNode<T>*& node, T key) {
+        if (!node) return;
+        this->enqueueCommand(std::make_unique<HighlightNodeCommand>(&node->visual, sf::Color(255, 165, 0), 0.3f));
+        if (key < node->data) internal_delete(node->left, key);
+        else if (key > node->data) internal_delete(node->right, key);
+        else {
+            if (!node->left || !node->right) {
+                BinaryNode<T>* temp = node->left ? node->left : node->right;
+                delete node;
+                node = temp;
+            } else {
+                BinaryNode<T>* temp = node->right;
+                while (temp->left) temp = temp->left;
+                node->data = temp->data;
+                node->visual.setString(std::to_string(node->data));
+                internal_delete(node->right, temp->data);
             }
-            else if(node->cmp(node->key,key))
-            {
-                result = insert(node->right, key);
-            }
-            else
-            {
-                return false;
-            }
-            balance_sub_tree(node);
-            return result;
         }
-        */
-       AVLnode* search(AVLnode* node, T key)
-       {
-            if(!node) return nullptr;
-            if(node->cmp(key, node->key))
-            {
-                return search(node->left, key);
-            }
-            else if(node->cmp(node->key, key))
-            {
-                return search(node->right, key);            
-            }
-            else
-            {
-                return node;
-            }
-       }
-       void delete_node(AVLnode*& node, T key)
-       {
-            if(!node) return;
-            if(node->cmp(key, node->key))
-            {
-                delete_node(node->left, key);
-            }
-            else if(node->cmp(node->key, key))
-            {
-                delete_node(node->right, key);
-            }
-            else
-            {
-                //Node to delete found!!!
-                //Case 1: LeafNode or just 1 child
-                if(!node->left || !node->right)
-                {
-                    AVLnode* temp = node->left ? node->left : node->right;
-                    //delete erases the AVLNode that node points to in the heap
-                    delete node;
-                    //Then the memory that is node is equaled by its only child
-                    //That way the node's parent is now pointing to it's grandchild
-                    node = temp;
-                }
-                //Case 2: Node has 2 children
-                else
-                {
-                    //Traditional erasure
-                    AVLnode* temp = node->right;
-                    while(temp->left)
-                    {
-                        temp = temp->left;
-                    }
-                    //Just the key because the dif height and ptrs are already correct
-                    node->key = temp->key;
-                    delete_node(node->right, temp->key);
-                }
-            }
-            if(node)
-            {
-                balance_sub_tree(node);
-            }
-       }
-       /*
-       //This one probably doesn't work
-       AVLNode* traditional_delete(AVLNode*& node, T key)
-       {
-            if(!node) return nullptr;
-            AVLNode* deleted = nullptr;
-            if(node->cmp(key, node->key))
-            {
-                deleted = traditional_delete(node->left, key);
-            }
-            else if(node->cmp(node->key, key))
-            {
-                deleted = traditional_delete(node->right, key);
-            }
-            else
-            {
-                deleted = node;
-                if(!node->left || !node->right)
-                {
-                    //Theoritecally don't need delete because i have to return the node
-                    node = node->left ? node->left : node->right;                    
-                }
-                AVLNode* successor = node->right;
-                while(successor->left)
-                {
-                    successor = succesor->left;
-                }
-                node->key = succesor->key;
-                traditional_delete(node->right, successor->key);
-            }
-            if(node)
-            {
-                balance_subtree(node);
-            }
-            return deleted;
-       }
-       */
-      void delete_tree(AVLnode* node)
-      {
-        if(!node) return;
+        if (node) balance_sub_tree(node);
+    }
+
+    void delete_tree(BinaryNode<T>* node) {
+        if (!node) return;
         delete_tree(node->left);
         delete_tree(node->right);
         delete node;
-      }
-    public:
-       AVLTree(): root(nullptr) {};
-       ~AVLTree() {delete_tree(root);}
-       void clean_tree()
-       {
-            delete_tree(root);
-            root = nullptr;
-       }
-       AVLnode* get_root() const { return root; }
-       void set_root(AVLnode* s_root)
-       {
-            root = s_root;
-       };
-       void insert(T key)
-       {
-            insert(root, key);
-       }
-       AVLnode* find(T key)
-       {
-            return search(root, key);
-       }
-       void erase(T key)
-       {
-            delete_node(root, key);
-       }
+    }
+
+        void update_positions(BinaryNode<T>* node, float x, float y, float hOffset) {
+        if (!node) return;
+        node->visual.setTargetPosition(sf::Vector2f(x, y));
+        update_positions(node->left, x - hOffset, y + 80.f, hOffset / 2.2f);
+        update_positions(node->right, x + hOffset, y + 80.f, hOffset / 2.2f);
+    }
+
+    void internal_draw(sf::RenderWindow& window, BinaryNode<T>* node) {
+        if (!node) return;
+        if (node->left) {
+                        sf::Color cLeft = sf::Color::White; cLeft.a = node->left->visual.getOpacity();
+            sf::Color cRootL = sf::Color::Black; cRootL.a = cLeft.a;
+            sf::Vertex line[] = { sf::Vertex(node->visual.getPosition(), cRootL), sf::Vertex(node->left->visual.getPosition(), cLeft) };
+            window.draw(line, 2, sf::PrimitiveType::Lines);
+        }
+        if (node->right) {
+                        sf::Color cRight = sf::Color::White; cRight.a = node->right->visual.getOpacity();
+            sf::Color cRootR = sf::Color::Black; cRootR.a = cRight.a;
+            sf::Vertex line[] = { sf::Vertex(node->visual.getPosition(), cRootR), sf::Vertex(node->right->visual.getPosition(), cRight) };
+            window.draw(line, 2, sf::PrimitiveType::Lines);
+        }
+        internal_draw(window, node->left);
+        internal_draw(window, node->right);
+        window.draw(node->visual); 
+    }
+
+public:
+    auto get_root() const { return root; }
+    AVL(const sf::Font& f) : font(f) {}
+    ~AVL() override { clear(); }
+
+    void insert(T value) override { internal_insert(root, value); }
+    void remove(T value) override { internal_delete(root, value); }
+    BinaryNode<T>* search_node(BinaryNode<T>* node, T key) { if (!node) return nullptr; this->enqueueCommand(std::make_unique<HighlightNodeCommand>(&node->visual, sf::Color::Cyan, 0.3f));
+        if (key < node->data) return search_node(node->left, key); if (key > node->data) return search_node(node->right, key); return node; } void search(T value) override { search_node(root, value); }
+    void clear() override { delete_tree(root); root = nullptr; }
+        void update_animations(BinaryNode<T>* node, float dt) {
+        if (!node) return;
+        node->visual.update(dt);
+        update_animations(node->left, dt);
+        update_animations(node->right, dt);
+    }
+    void update(float dt) override { update_animations(root, dt); }
+    void draw(sf::RenderWindow& window) override { update_positions(root, 400.f, 50.f, 200.f); internal_draw(window, root); }
 };
+
+
+
+
+
+
+
+

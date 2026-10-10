@@ -1,237 +1,148 @@
-#include<random>
-template<typename T, typename Compare = std::less<T>>
-//Con min heap
-struct TreapNode
-{
-    T key;
-    int priority;
-    TreapNode* left;
-    TreapNode* right;
-    Compare cmp;
-    TreapNode(T K, Compare cmp = Compare()): key(K), left(nullptr), right(nullptr), cmp(cmp)
-    {
-        static std::random_device rng;
-        static std::mt19937 gen(rng());
-        static std::uniform_int_distribution<int> dist(1, 1e9);
-        priority = dist(gen);
-    }
-    ~TreapNode() = default;
-};
-template<typename T, typename Compare = std::less<T>>
-class Treap
-{
-    using TrNode = TreapNode<T, Compare>;
-    private:
-        TrNode* root;
-        void rotate_left(TrNode*& node)
-        {
-            TrNode* R = node->right;
-            node->right = R->left;
-            R->left = node;
-            node = R;
-        }
-        void rotate_right(TrNode*& node)
-        {
-            TrNode* L = node->left;
-            node->left = L->right;
-            L->right = node;
-            node = L;
-        }
-        void insert(TrNode*& node, T key)
-        {
-            if(!node)
-            {
-                node = new TrNode(key);
-                return;
-            }
-            if(node->cmp(key, node->key))
-            {
-                insert(node->left, key);
-                if((node->left->priority < node->priority))
-                {
-                    rotate_right(node);
-                }
-            }
-            else if(node->cmp(node->key, key))
-            {
-                insert(node->right,key);
-                if(node->right->priority < node->priority)
-                {
-                    rotate_left(node);
-                }
-            }
-            //If it already exists, then nothing must be done
-        }
-        TrNode* delete_node(TrNode* node, T key)
-        {
-            if(!node) return nullptr;
-            if(node->cmp(key, node->key))
-            {
-                node->left = delete_node(node->left, key);
-                return node;
-            }
-            else if(node->cmp(node->key, key))
-            {
-                node->right = delete_node(node->right, key);
-                return node;
-            }
-            else
-            {
-                //Caso 1: Leaf Node
-                if(!node->left && ! node->right)
-                {
-                    delete node;
-                    return nullptr;
-                }
-                //Case 2: One child
-                else if(!node->left)
-                {
-                    TrNode* temp = node->right;
-                    delete node;
-                    return temp;
-                }
-                else if(!node->right)
-                {
-                    TrNode* temp = node->left;
-                    delete node;
-                    return temp;
-                }
-                //Case 3: two Children
-                else
-                {
-                    if(node->left->priority < node->right->priority)
-                    {
-                        rotate_right(node);
-                        node->right = delete_node(node->right, key);
-                    }
-                    else
-                    {
-                        rotate_left(node);
-                        node->left = delete_node(node->left, key);
-                    }
-                    return node;
-                }
-            }
-        }
-        void inorder_traversal(TrNode* node, int depth = 0)
-        {
-            if(!node) return;
-            inorder_traversal(node->left, depth + 1);
-            std::cout<< node->key << " ";
-            inorder_traversal(node->right, depth + 1);
-        }
-        TrNode* search(TrNode* node, T key)
-        {
-            if(!node) return nullptr;
-            if(node->cmp(key, node->key))
-            {
-                return search(node->left, key);
-            }
-            else if(node->cmp(node->key, key))
-            {
-                return search(node->right, key);
-            }
-            else
-            {
-                return node;
-            }
-        }
-        void split_treap(TrNode* root, TrNode*& L, TrNode*& R, T key)
-        {
-            if(!root)
-            {
-                L = R = nullptr;
-                return;
-            }
-            else if(root->cmp(key, root->key))
-            {
-                R = root;
-                split_treap(root->left, L, R->left, key);
-            }
-            else
-            {
-                L = root;
-                split_treap(root->right, L->right, R, key);
-            }
-        }
-        TrNode* merge_treaps(TrNode* L, TrNode* R)
-        {
-            if(!L) return R;
-            if(!R) return L;
-            if(L->priority < R->priority)
-            {
-                L->right = merge_treaps(L->right, R);
-                return L;
-            }
-            else
-            {
-                R->left = merge_treaps(L, R->left);
-                return R;
-            }
-        }
-        TrNode* delete_with_merge(TrNode* node, T key)
-        {
-            TrNode* new_node = new TrNode(key);
-            TrNode* L = nullptr;
-            TrNode* R = nullptr;
-            split_treap(node, L, R, key);
-            TrNode** walker = &L;
-            while(*walker && (*walker)->right)
-            {
-                walker = &((*walker)->right);
-            }
-            if(*walker && (*walker)->key == key)
-            {
-                TrNode* to_delete = *walker;
-                *walker = (*walker)->left;
-                delete to_delete;
-            }
-            return merge_treaps(L, R);    
-        }
-        void destroy_treap(TrNode* node)
-        {
-            if(!node) return;
-            destroy_treap(node->left);
-            destroy_treap(node->right);
-            delete node;
-        }
+#pragma once
+#include "Data_Structure.hpp"
+#include <cstdlib>
 
-    public:
-        Treap(): root(nullptr){}
-        ~Treap()
-        {
-            destroy_treap(root);
-        }
-        void clean_tree()
-       {
-            destroy_treap(root);
-            root = nullptr;
-       }
-        TrNode* get_root() const { return root; }
-        void set_root(TrNode* s_root) 
-        {
-            root = s_root;
-        };
-        void insert(T key)
-        {
-            insert(root, key);
-        }
-        void delete_node(T key)
-        {
-            root = delete_node(root, key);
-        }
-        void delete_with_merge(T key)
-        {
-            root = delete_with_merge(root, key);
-        }
-        void inorder_traversal()
-        {
-            inorder_traversal(root);
-            std::cout<<std::endl;
-        }
-        TrNode* search(T key)
-        {
-            return search(root, key);
-        }
-        
+template <typename T>
+struct TreapNode {
+    T data;
+    int priority;
+    TreapNode* left = nullptr;
+    TreapNode* right = nullptr;
+    VisualNode visual;
+
+    TreapNode(T val, const sf::Font& font) 
+        : data(val), priority(std::rand()), visual(std::to_string(val), font) {}
 };
+
+template <typename T>
+class Treap : public DataStructure<T> {
+private:
+    TreapNode<T>* root = nullptr;
+    const sf::Font& font;
+
+    void split_treap(TreapNode<T>* node, TreapNode<T>*& L, TreapNode<T>*& R, T key) {
+        if (!node) { L = R = nullptr; return; }
+        if (key > node->data) {
+            L = node;
+            split_treap(node->right, L->right, R, key);
+        } else {
+            R = node;
+            split_treap(node->left, L, R->left, key);
+        }
+    }
+
+    TreapNode<T>* merge_treaps(TreapNode<T>* L, TreapNode<T>* R) {
+        if (!L) return R;
+        if (!R) return L;
+        if (L->priority > R->priority) { 
+            L->right = merge_treaps(L->right, R);
+            return L;
+        } else {
+            R->left = merge_treaps(L, R->left);
+            return R;
+        }
+    }
+
+    void internal_insert(TreapNode<T>*& node, TreapNode<T>* newNode) {
+        if (!node) {
+            node = newNode;
+            return;
+        }
+        this->enqueueCommand(std::make_unique<HighlightNodeCommand>(&node->visual, sf::Color::Red, 0.3f));
+        if (newNode->priority > node->priority) {
+            split_treap(node, newNode->left, newNode->right, newNode->data);
+            node = newNode;
+        } else {
+            if (newNode->data < node->data) internal_insert(node->left, newNode);
+            else internal_insert(node->right, newNode);
+        }
+    }
+
+    TreapNode<T>* delete_node(TreapNode<T>* node, T key) {
+        if (!node) return nullptr;
+        this->enqueueCommand(std::make_unique<HighlightNodeCommand>(&node->visual, sf::Color(255, 165, 0), 0.3f));
+        if (key < node->data) node->left = delete_node(node->left, key);
+        else if (key > node->data) node->right = delete_node(node->right, key);
+        else {
+            TreapNode<T>* temp = merge_treaps(node->left, node->right);
+            delete node;
+            return temp;
+        }
+        return node;
+    }
+
+    TreapNode<T>* delete_with_merge_split_logic(TreapNode<T>* node, T key) {
+        TreapNode<T> *L = nullptr, *R = nullptr, *M = nullptr;
+        split_treap(node, L, R, key);
+        split_treap(R, M, R, key + 1); 
+        if (M) delete M;
+        return merge_treaps(L, R);
+    }
+
+    void delete_tree(TreapNode<T>* node) {
+        if (!node) return;
+        delete_tree(node->left);
+        delete_tree(node->right);
+        delete node;
+    }
+
+        void update_positions(TreapNode<T>* node, float x, float y, float hOffset) {
+        if (!node) return;
+        node->visual.setTargetPosition(sf::Vector2f(x, y));
+        update_positions(node->left, x - hOffset, y + 80.f, hOffset / 2.2f);
+        update_positions(node->right, x + hOffset, y + 80.f, hOffset / 2.2f);
+    }
+
+    void internal_draw(sf::RenderWindow& window, TreapNode<T>* node) {
+        if (!node) return;
+        if (node->left) {
+                        sf::Color cLeft = sf::Color::White; cLeft.a = node->left->visual.getOpacity();
+            sf::Color cRootL = sf::Color::Black; cRootL.a = cLeft.a;
+            sf::Vertex line[] = { sf::Vertex(node->visual.getPosition(), cRootL), sf::Vertex(node->left->visual.getPosition(), cLeft) };
+            window.draw(line, 2, sf::PrimitiveType::Lines);
+        }
+        if (node->right) {
+                        sf::Color cRight = sf::Color::White; cRight.a = node->right->visual.getOpacity();
+            sf::Color cRootR = sf::Color::Black; cRootR.a = cRight.a;
+            sf::Vertex line[] = { sf::Vertex(node->visual.getPosition(), cRootR), sf::Vertex(node->right->visual.getPosition(), cRight) };
+            window.draw(line, 2, sf::PrimitiveType::Lines);
+        }
+        internal_draw(window, node->left);
+        internal_draw(window, node->right);
+        window.draw(node->visual); 
+    }
+
+public:
+    auto get_root() const { return root; }
+    Treap(const sf::Font& f) : font(f) {}
+    ~Treap() override { clear(); }
+
+    void insert(T value) override {
+        auto newNode = new TreapNode<T>(value, font);
+        newNode->visual.setOpacity(0);
+        internal_insert(root, newNode);
+        this->enqueueCommand(std::make_unique<FadeInCommand>(&newNode->visual, 0.5f));
+    }
+
+    void remove(T value) override { remove_standard(value); }
+
+    void remove_standard(T value) { root = delete_node(root, value); }
+    void remove_merge_split(T value) { root = delete_with_merge_split_logic(root, value); }
+
+    void search(T value) override { }
+    void clear() override { delete_tree(root); root = nullptr; }
+        void update_animations(TreapNode<T>* node, float dt) {
+        if (!node) return;
+        node->visual.update(dt);
+        update_animations(node->left, dt);
+        update_animations(node->right, dt);
+    }
+    void update(float dt) override { update_animations(root, dt); }
+    void draw(sf::RenderWindow& window) override { update_positions(root, 400.f, 50.f, 200.f); internal_draw(window, root); }
+};
+
+
+
+
+
+
